@@ -1,0 +1,13 @@
+# Maven build output
+/target/
+
+# IntelliJ IDEA project-local configuration
+/.idea/
+*.iml
+
+# Compiled Java files
+*.class
+
+# Other IDE files
+/.vscode/
+.DS_Store
