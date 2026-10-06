@@ -1,13 +1,11 @@
 package dut.pd3.practices;
 
 import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,80 +14,44 @@ public abstract class TransactionCSVReader {
     private TransactionCSVReader() {
     }
 
-    public static List<Transaction> readTransactions(String filePath) {
-        if (filePath == null || filePath.isBlank()) {
-            throw new IllegalArgumentException("Шлях до CSV не може бути порожнім");
-        }
+    public static List<Transaction> readTransactions(String fileName) {
+        List<String> lines = new ArrayList<>();
 
-        Path path = null;
+        InputStream inputStream = TransactionCSVReader.class.getClassLoader().getResourceAsStream(fileName);
         try {
-            path = Path.of(filePath);
-        } catch (InvalidPathException ignored) {
-            // Значення може бути URL, а не шляхом до локального файлу.
-        }
+            if (inputStream == null) {
+                inputStream = new FileInputStream(fileName);
+            }
 
-        try (BufferedReader reader = path != null && Files.isRegularFile(path)
-                ? Files.newBufferedReader(path, StandardCharsets.UTF_8)
-                : new BufferedReader(new InputStreamReader(
-                        URI.create(filePath).toURL().openStream(), StandardCharsets.UTF_8))) {
-            List<String> lines = new ArrayList<>();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (!line.isBlank()) {
-                    lines.add(line);
+            try (BufferedReader br = new BufferedReader(
+                    new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    if (!line.trim().isEmpty()) {
+                        lines.add(line);
+                    }
                 }
             }
-            return parseLines(lines);
-        } catch (IOException | IllegalArgumentException e) {
-            throw new IllegalStateException("Не вдалося зчитати CSV: " + filePath, e);
+        } catch (IOException e) {
+            System.err.println("Помилка читання файлу: " + e.getMessage());
         }
+
+        return parseLines(lines);
     }
 
     public static List<Transaction> parseLines(List<String> lines) {
         List<Transaction> transactions = new ArrayList<>();
         for (String line : lines) {
-            List<String> values = parseCsvRow(line);
-            if (values.size() < 3) {
-                continue;
-            }
-
-            try {
-                double amount = Double.parseDouble(values.get(1).trim());
-                transactions.add(new Transaction(
-                        values.get(0).trim(), amount, values.get(2).trim()));
-            } catch (NumberFormatException ignored) {
-                // Некоректне число, зокрема заголовок CSV, пропускаємо.
+            String[] values = line.split(",");
+            if (values.length >= 3) {
+                try {
+                    double amount = Double.parseDouble(values[1].trim());
+                    transactions.add(new Transaction(
+                            values[0].trim(), amount, values[2].trim()));
+                } catch (NumberFormatException ignored) {
+                }
             }
         }
         return transactions;
-    }
-
-    private static List<String> parseCsvRow(String line) {
-        List<String> values = new ArrayList<>();
-        StringBuilder value = new StringBuilder();
-        boolean insideQuotes = false;
-
-        for (int i = 0; i < line.length(); i++) {
-            char current = line.charAt(i);
-            if (current == '"') {
-                if (insideQuotes && i + 1 < line.length() && line.charAt(i + 1) == '"') {
-                    value.append('"');
-                    i++;
-                } else {
-                    insideQuotes = !insideQuotes;
-                }
-            } else if (current == ',' && !insideQuotes) {
-                values.add(value.toString());
-                value.setLength(0);
-            } else {
-                value.append(current);
-            }
-        }
-
-        if (insideQuotes) {
-            return List.of();
-        }
-        values.add(value.toString());
-        return values;
     }
 }

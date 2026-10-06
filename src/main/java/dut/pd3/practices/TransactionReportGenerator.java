@@ -5,9 +5,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public abstract class TransactionReportGenerator {
+public final class TransactionReportGenerator {
 
-    private TransactionReportGenerator() {}
+    private TransactionReportGenerator() {
+    }
 
     public static void printBalanceReport(double totalBalance) {
         System.out.println("Загальний баланс: " + totalBalance);
@@ -24,30 +25,32 @@ public abstract class TransactionReportGenerator {
         }
     }
 
-    public static void printPeriodExpensesExtremes(LocalDate start, LocalDate end,
-                                                   Optional<Transaction> maxExpense,
-                                                   Optional<Transaction> minExpense) {
+    public static void printPeriodExpensesExtremes(
+            LocalDate start,
+            LocalDate end,
+            Optional<Transaction> maxExpense,
+            Optional<Transaction> minExpense) {
         System.out.println("\nАналіз витрат за період з " + start + " по " + end + ":");
-        maxExpense.ifPresentOrElse(
-                t -> System.out.println("Найбільша витрата: " + t.getDescription() + " (" + t.getAmount() + " грн) від " + t.getDate()),
-                () -> System.out.println("Найбільша витрата: відсутня")
-        );
-        minExpense.ifPresentOrElse(
-                t -> System.out.println("Найменша витрата: " + t.getDescription() + " (" + t.getAmount() + " грн) від " + t.getDate()),
-                () -> System.out.println("Найменша витрата: відсутня")
-        );
+        printExpenseExtreme("Найбільша витрата", maxExpense);
+        printExpenseExtreme("Найменша витрата", minExpense);
     }
 
-    // Псевдографічний звіт: 1 символ '*' = 1000 грн
-    public static void printVisualExpenseReport(String title, Map<String, Double> expenseMap, double unitValue) {
-        if (unitValue <= 0 || !Double.isFinite(unitValue)) {
-            throw new IllegalArgumentException("Значення unitValue має бути додатним числом");
-        }
+    public static void printVisualExpenseReport(
+            String title,
+            Map<String, Double> expenseMap,
+            double unitValue) {
         System.out.println("\n" + title + " (* = " + (int) unitValue + " грн):");
         expenseMap.forEach((key, sum) -> {
-            int starsCount = (int) (sum / unitValue);
-            String bar = "*".repeat(Math.max(0, starsCount));
+            String bar = "*".repeat(Math.max(0, (int) Math.round(sum / unitValue)));
             System.out.printf("%-18s | %-20s (%.2f грн)%n", key, bar, sum);
         });
+    }
+
+    private static void printExpenseExtreme(String label, Optional<Transaction> expense) {
+        expense.ifPresentOrElse(
+                transaction -> System.out.println(label + ": " + transaction.getDescription()
+                        + " (" + transaction.getAmount() + " грн) від " + transaction.getDate()),
+                () -> System.out.println(label + ": відсутня")
+        );
     }
 }
